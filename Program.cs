@@ -18,16 +18,11 @@ namespace isc4_MCAwards
         public ScoreKeeper ScoreKeeper;
     }
 
-    public class ScoreKeeper
-    {
-        public List<Team> Teams;
-    }
-
     public class Team 
     {
         public string Name { get; set; }
         public List<TeamMember> Members;
-        public List<MatchSet> Matches;
+        public MatchStats Stats { get; set; }
     }
 
     public class TeamMember
@@ -35,11 +30,65 @@ namespace isc4_MCAwards
         public string Name { get; set; }
     }
 
-    public class MatchSet
+    //this is the Match Day set of drops in the lobby (x5):
+    public class MatchEvent
     {
+        public int MatchID { get; set; }
+        public DateTime Date {get; set;}
+        public Team Team1 { get; set; }
+        public Team Team2 { get; set; }
         public List<Match> Drops;
     }
 
+    /*
+    Single Match 
+    ---------------
+    Most Damage, Most Component Destruction, Most Kills, Most Kill Assists, Most KMDD
+
+    Single Drop
+    -------------
+    Most Damage, Most Component Destruction, Most Team Damage                       
+    */
+    public class MatchStats
+    {
+        public int Damage { get; set; }
+        public int ComponentsDestroyed { get; set; }
+        public int Kills { get; set; }
+        public int KillAssists { get; set; }       
+        public int KMDD { get; set; }   
+        public int TeamDamage { get; set; } 
+    }
+
+    public class ScoreKeeper
+    {
+        public List<MatchEvent> MatchEvents { get; set; }
+
+        public KeyValuePair<Team, int> SingleMatchMostKills { get; set; }
+        public KeyValuePair<Team, int> SingleMatchMostKillAssists { get; set; }
+        public KeyValuePair<Team, int> SingleMatchMostDamage { get; set; }
+        public KeyValuePair<Team, int> SingleMatchMostKMDD { get; set; }
+        public KeyValuePair<Team, int> SingleMatchMostComponentsDestroyed { get; set; }
+
+        public KeyValuePair<Team, int> SingleDropMostTeamDamage { get; set; } 
+        public KeyValuePair<Team, int> SingleDropMostDamage { get; set; }
+        public KeyValuePair<Team, int> SingleDropMostComponentsDestroyed { get; set; }
+
+        public ScoreKeeper()
+        {
+            MatchEvents = new List<MatchEvent>();
+        }
+        
+        public void AddScoresForSingleMatch()
+        {
+            
+        }
+
+        public void AddScoresForSingleDrop()
+        {
+
+        }
+    }
+    
     public class MatchDetails
     {
         [JsonPropertyName("Map")]
