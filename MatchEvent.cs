@@ -20,8 +20,6 @@ namespace isc4_MCAwards
         public SortedSet<TeamMember> pilotTopComponentsDestroyed  = new SortedSet<TeamMember>(new ComponentsDestroyedComparer());
         public SortedSet<TeamMember> pilotTopDamage = new SortedSet<TeamMember>(new DamageComparer());
 
-        //public SortedSet<TeamMember> pilotTopTeamDamage = new SortedSet<TeamMember>(new TeamDamageComparer());
-
         public MatchEvent()
         {
             Drops = new List<Match>();
@@ -63,14 +61,14 @@ namespace isc4_MCAwards
                                 teamMember.Stats.TeamDamage += user.TeamDamage;
 
                                 var success = BothTeamsPerMatch.MembersC.TryAdd(user.Username, teamMember);
-                                string message = success == true ? $"{user.Username},{user.Damage}" : $"did not update {user.Username}";
-                                Console.WriteLine(message);
+                                //string message = success == true ? $"{user.Username},{user.Damage}" : $"did not update {user.Username}";
+                                //Console.WriteLine(message);
                             }
                             else
                             {
                                 var success = BothTeamsPerMatch.MembersC.TryAdd(user.Username, pilot);
-                                string message = success == true ? $"{user.Username},{pilot.Stats.Damage}" : $"did not add {user.Username}";
-                                Console.WriteLine(message);
+                                //string message = success == true ? $"{user.Username},{pilot.Stats.Damage}" : $"did not add {user.Username}";
+                                //Console.WriteLine(message);
                             }
                         }
                     }
@@ -100,8 +98,7 @@ namespace isc4_MCAwards
             
             return true;
         }
-    
-        public bool? CalculatePerDropStats()
+        public bool? PopulatePerDropStats()
         {
             if (Drops != null && Drops.Count == 0)
             {
@@ -123,45 +120,10 @@ namespace isc4_MCAwards
                             pilot.Stats.Damage = user.Damage;
                             pilot.Stats.TeamDamage = user.TeamDamage;
 
-                            //calculate cumulative pilot scores within this match:
-                            TeamMember teamMember;
-                            if(BothTeamsPerMatch.MembersC.TryRemove(user.Username, out teamMember))
-                            {
-                                teamMember.Stats.Kills += user.Kills;
-                                teamMember.Stats.KMDD += user.KillsMostDamage;
-                                teamMember.Stats.ComponentsDestroyed += user.ComponentsDestroyed;
-                                teamMember.Stats.KillAssists += user.Assists;             
-                                teamMember.Stats.Damage += user.Damage;
-                                teamMember.Stats.TeamDamage += user.TeamDamage;
-
-                                var success = BothTeamsPerMatch.MembersC.TryAdd(user.Username, teamMember);
-                                string message = success == true ? $"{user.Username},{user.Damage}" : $"did not update {user.Username}";
-                                Console.WriteLine(message);
-                            }
-                            else
-                            {
-                                var success = BothTeamsPerMatch.MembersC.TryAdd(user.Username, pilot);
-                                string message = success == true ? $"{user.Username},{pilot.Stats.Damage}" : $"did not add {user.Username}";
-                                Console.WriteLine(message);
-                            }
+                            //add pilot stats for each drop (will create duplicates):
+                            BothTeamsPerDrop.MembersG.Add(pilot);
                         }
                     }
-                }
-
-                List<TeamMember> pilots = new List<TeamMember>();
-                foreach (var member in BothTeamsPerMatch.MembersC)
-                {
-                    pilots.Add(member.Value);
-                }
-
-                //populate the SortedSets for each stat score:
-                foreach (var pilot in pilots)
-                {          
-                    pilotTopKills.Add(pilot);
-                    pilotTopKillAssists.Add(pilot);   
-                    pilotTopKMDD.Add(pilot);
-                    pilotTopComponentsDestroyed.Add(pilot);
-                    pilotTopDamage.Add(pilot);    
                 }
             }
             catch (Exception exc)

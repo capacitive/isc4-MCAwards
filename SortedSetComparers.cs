@@ -6,8 +6,13 @@ namespace isc4_MCAwards
     {
         public int Compare(TeamMember x, TeamMember y)
         {
-            int result = x.Stats.Damage.CompareTo(y.Stats.Damage);
-            return result;
+            try
+            {
+                int result = x.Stats.Damage.CompareTo(y.Stats.Damage);
+                return result;
+            }
+            catch {}
+            return 0;
         }
     }
 
@@ -15,8 +20,13 @@ namespace isc4_MCAwards
     {
         public int Compare(TeamMember x, TeamMember y)
         {
-            int result = x.Stats.ComponentsDestroyed.CompareTo(y.Stats.ComponentsDestroyed);
-            return result;
+            try
+            {
+                int result = x.Stats.ComponentsDestroyed.CompareTo(y.Stats.ComponentsDestroyed);
+                return result;
+            }
+            catch {}
+            return 0;
         }
     }
 
@@ -24,8 +34,13 @@ namespace isc4_MCAwards
     {
         public int Compare(TeamMember x, TeamMember y)
         {
-            int result = x.Stats.Kills.CompareTo(y.Stats.Kills);
-            return result;
+            try
+            {
+                int result = x.Stats.Kills.CompareTo(y.Stats.Kills);
+                return result;
+            }
+            catch {}
+            return 0;
         }
     }
 
@@ -33,8 +48,13 @@ namespace isc4_MCAwards
     {
         public int Compare(TeamMember x, TeamMember y)
         {
-            int result = x.Stats.KillAssists.CompareTo(y.Stats.KillAssists);
-            return result;
+            try
+            {
+                int result = x.Stats.KillAssists.CompareTo(y.Stats.KillAssists);
+                return result;
+            }
+            catch {}
+            return 0;
         }
     }
 
@@ -42,8 +62,13 @@ namespace isc4_MCAwards
     {
         public int Compare(TeamMember x, TeamMember y)
         {
-            int result = x.Stats.KMDD.CompareTo(y.Stats.KMDD);
-            return result;
+            try 
+            {
+                int result = x.Stats.KMDD.CompareTo(y.Stats.KMDD);
+                return result;
+            }
+            catch {}
+            return 0;
         }
     }
 
@@ -51,8 +76,13 @@ namespace isc4_MCAwards
     {
         public int Compare(TeamMember x, TeamMember y)
         {
-            int result = x.Stats.TeamDamage.CompareTo(y.Stats.TeamDamage);
-            return result;
+            try
+            {
+                int result = x.Stats.TeamDamage.CompareTo(y.Stats.TeamDamage);
+                return result;
+            }
+            catch {}
+            return 0;
         }
     }
 }
