@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using Newtonsoft.Json.Converters;
+using LiteDB;
 
 namespace isc4_MCAwards
 {
@@ -7,10 +11,21 @@ namespace isc4_MCAwards
     */
     public class Tournament 
     {
+        [BsonId]
+        public int ID { get; set; }    
         public string Name {get; set;}
-        public string Year {get; set;}
+        public int Year {get; set;}
+        
+        [JsonConverter(typeof(IsoDateTimeConverter))]
         public DateTime StartDate {get; set;}
+
+        [JsonConverter(typeof(IsoDateTimeConverter))]
         public DateTime EndDate {get; set;}
-        public ScoreKeeper ScoreKeeper;
+        public List<MatchEvent> Matches { get; set; }
+
+        public Tournament()
+        {
+            Matches = new List<MatchEvent>();            
+        }
     }
 }

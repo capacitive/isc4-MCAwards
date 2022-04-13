@@ -1,31 +1,71 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using Newtonsoft.Json.Converters;
+using LiteDB;
 
 namespace isc4_MCAwards
 {
-    //MatchEvent contains n drops in the MWO in-game lobby (data from API GET):
+    //MatchEvent contains n drops in the MWO in-game lobby 
+    // 1. List<Match> Drops: raw lobby data from API GET (MatchDetails and UserDetails)
+    // 2. (Team)BothTeamsPerDrop typed data for n match drop stats
+    // 3. (Team)BothTeamsPerMatch: typed data for cumulative match stats
+    // 4. List<TeamMember> Pilots: simple list for NoSQL doc store (needs BSON mapping for refs)
     public class MatchEvent
     {
-        public int ID { get; set; }
-        public DateTime Date {get; set;}
-        public Team Team1;
-        public Team Team2;
-        public Team BothTeamsPerMatch;
-        public Team BothTeamsPerDrop;
-        public List<Match> Drops;
+        #region props, fields and ctor
+        
+        [BsonId]
+        public int Id { get; set; } 
 
+        [BsonField]
+        [JsonConverter(typeof(IsoDateTimeConverter))]
+        public DateTime Date {get; set;}
+
+        public List<TeamMember> TeamMembers {get; set;}
+
+        [BsonField]
+        public Team Team1;
+
+        [BsonField]
+        public Team Team2;
+        
+        #region ignored for NoSQL doc store
+
+        [JsonIgnore]
+        public List<Match> Drops;
+        
+        [JsonIgnore]
+        public Team BothTeamsPerMatch;
+        
+        [JsonIgnore]
+        public Team BothTeamsPerDrop; 
+
+        [JsonIgnore]
         public SortedSet<TeamMember> pilotTopKills = new SortedSet<TeamMember>(new KillsComparer());
+        
+        [JsonIgnore]
         public SortedSet<TeamMember> pilotTopKillAssists = new SortedSet<TeamMember>(new KillAssistsComparer());
+        
+        [JsonIgnore]
         public SortedSet<TeamMember> pilotTopKMDD = new SortedSet<TeamMember>(new KMDDComparer());
+
+        [JsonIgnore]
         public SortedSet<TeamMember> pilotTopComponentsDestroyed  = new SortedSet<TeamMember>(new ComponentsDestroyedComparer());
+        
+        [JsonIgnore]
         public SortedSet<TeamMember> pilotTopDamage = new SortedSet<TeamMember>(new DamageComparer());
+        #endregion ignored for NoSQL doc store
 
         public MatchEvent()
         {
             Drops = new List<Match>();
             BothTeamsPerMatch = new Team();
             BothTeamsPerDrop = new Team();
+            TeamMembers = new List<TeamMember>();
         }
+
+        #endregion props, fields and ctor
 
         public bool? CalculatePerMatchStats()
         {

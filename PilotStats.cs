@@ -1,3 +1,5 @@
+using LiteDB;
+
 namespace isc4_MCAwards
 {
     /*
@@ -10,12 +12,12 @@ namespace isc4_MCAwards
     Most Damage, Most Component Destruction, Most Team Damage                       
     */
     public class PilotStats
-    {
-        public int Damage;
-        public int ComponentsDestroyed;
-        public int Kills;
-        public int KillAssists;   
-        public int KMDD; 
-        public int TeamDamage;
+    {        
+        public int Damage {get;set;}
+        public int ComponentsDestroyed {get;set;}
+        public int Kills {get;set;}
+        public int KillAssists {get;set;}
+        public int KMDD {get;set;} 
+        public int TeamDamage {get;set;}
     }
 }
