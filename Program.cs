@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Net.Http;
 using Newtonsoft.Json;
 using Google.Apis.Auth.OAuth2;
@@ -12,6 +13,7 @@ using Google.Apis.Services;
 using Google.Apis.Util.Store;
 using Google.Apis.Sheets.v4;
 using LiteDB;
+using ShellProgressBar;
 
 /* how to query NoSQL LiteDB:
 
@@ -75,42 +77,53 @@ namespace isc4_MCAwards
                         //PGI API or cached Match from LiteDB:
                         if (values != null && values.Count > 0)
                         {
-                            int idx = 1;
-                            foreach (var row in values)
+                            int totalTicks = values.Count;
+                            var options = new ProgressBarOptions
                             {
-                                MatchEvent matchEvent = new MatchEvent 
-                                { 
-                                    Id = idx,
-                                    Date = DateTime.Parse(row[0].ToString()),
-                                    Team1 = new Team { Name = row[1].ToString() },
-                                    Team2 = new Team { Name = row[2].ToString() }
-                                };
+                                ProgressCharacter = '-',
+                                ProgressBarOnBottom = true
+                            };
 
-                                for (int i = 5; i < 10; i++)
+                            using (var pbar = new ProgressBar(totalTicks, "Getting data from API.", options))
+                            {
+                                int idx = 1;
+                                foreach (var row in values)
                                 {
-                                    string matchID = row[i].ToString();          
-                                    var collection = db.GetCollection<Match>("apidata");
-                                    Match cachedMatch = collection.FindOne(x => x.MatchID == matchID);
+                                    MatchEvent matchEvent = new MatchEvent 
+                                    { 
+                                        Id = idx,
+                                        Date = DateTime.Parse(row[0].ToString()),
+                                        Team1 = new Team { Name = row[1].ToString() },
+                                        Team2 = new Team { Name = row[2].ToString() }
+                                    };
 
-                                    if(cachedMatch == null && matchID != "0")
+                                    for (int i = 5; i < 10; i++)
                                     {
-                                        Match match = GetMatchData(matchID);      
-                                        if(match != null)
+                                        string matchID = row[i].ToString();          
+                                        var collection = db.GetCollection<Match>("apidata");
+                                        Match cachedMatch = collection.FindOne(x => x.MatchID == matchID);
+
+                                        if(cachedMatch == null && matchID != "0")
                                         {
-                                            match.MatchID = matchID;
-                                            matchEvent.Drops.Add(match);
-                                            collection.Insert(match);
-                                        } 
-                                    }
-                                    else
-                                    {
-                                        matchEvent.Drops.Add(cachedMatch);
-                                    }
-                                } 
+                                            Match match = GetMatchData(matchID);      
+                                            if(match != null)
+                                            {
+                                                match.MatchID = matchID;
+                                                matchEvent.Drops.Add(match);
+                                                collection.Insert(match);
+                                            } 
+                                        }
+                                        else
+                                        {
+                                            matchEvent.Drops.Add(cachedMatch);
+                                        }
+                                    } 
 
-                                matchEvents.Add(matchEvent);
-                                idx++;            
-                            }                  
+                                    matchEvents.Add(matchEvent);
+                                    idx++;  
+                                    pbar.Tick();          
+                                }
+                            }                            
                         }
                         else
                         {
@@ -132,24 +145,24 @@ namespace isc4_MCAwards
                         Console.WriteLine("Drop Pilot Name,Components Destroyed,Damage,Team Damage");
 
                         //for the document store:
-                        Tournament isc4 = new Tournament
-                        {
-                            Name = "ISC 4 (2022)",
-                            StartDate = new DateTime(2022,1,11),
-                            EndDate = new DateTime(2022,3,28),
-                            Year = 2022
-                        };
+                        // Tournament isc4 = new Tournament
+                        // {
+                        //     Name = "ISC 4 (2022)",
+                        //     StartDate = new DateTime(2022,1,11),
+                        //     EndDate = new DateTime(2022,3,28),
+                        //     Year = 2022
+                        // };
 
-                        var matchEventsLDB = db.GetCollection<MatchEvent>("MatchEvents");
-                        var teamMembersLDB = db.GetCollection<TeamMember>("TeamMembers");
-                        var pilotStatsLDB = db.GetCollection<PilotStats>("PilotStats");
+                        // var matchEventsLDB = db.GetCollection<MatchEvent>("MatchEvents");
+                        // var teamMembersLDB = db.GetCollection<TeamMember>("TeamMembers");
+                        // var pilotStatsLDB = db.GetCollection<PilotStats>("PilotStats");
 
                         // BsonMapper.Global.Entity<Tournament>()
                         // .DbRef(x => x.Matches, "MatchEvents");
 
                         // BsonMapper.Global.Entity<MatchEvent>()
                         // .DbRef(x => x.TeamMembers, "TeamMembers");
-                            
+                        
                         //the Big Kahuna - iterates all MatchEvents and calculates stats:
                         foreach (var match in matchEvents)
                         {
@@ -161,29 +174,28 @@ namespace isc4_MCAwards
                             {
                                 _pilotTopKillsPerMatch.Add(match.pilotTopKills.Max);
                                 InsertMatchPilotHighestScoreIntoCorrespondingList(match, "kills");
-                            }
-                            
-                            
+                            } 
+    
                             if(match.pilotTopKillAssists.Max != null) {
                                 _pilotTopKillAssistsPerMatch.Add(match.pilotTopKillAssists.Max);
-                                InsertMatchPilotHighestScoreIntoCorrespondingList(match, "assists");
+                                InsertMatchPilotHighestScoreIntoCorrespondingList(match, "assists"); 
                             }
 
                             if(match.pilotTopKMDD.Max != null) 
                             {
                                 _pilotTopKMDDPerMatch.Add(match.pilotTopKMDD.Max);
-                                InsertMatchPilotHighestScoreIntoCorrespondingList(match, "kmdd");
+                                InsertMatchPilotHighestScoreIntoCorrespondingList(match, "kmdd"); 
                             }
 
                             if(match.pilotTopComponentsDestroyed.Max != null) 
                             {
                                 _pilotTopComponentsDestroyedPerMatch.Add(match.pilotTopComponentsDestroyed.Max);
-                                InsertMatchPilotHighestScoreIntoCorrespondingList(match, "components");
+                                InsertMatchPilotHighestScoreIntoCorrespondingList(match, "components"); 
                             }
 
                             if(match.pilotTopDamage.Max != null) {
                                 _pilotTopDamagePerMatch.Add(match.pilotTopDamage.Max);
-                                InsertMatchPilotHighestScoreIntoCorrespondingList(match, "damage");
+                                InsertMatchPilotHighestScoreIntoCorrespondingList(match, "damage"); 
                             }
 
                             // another 'batch' of pilots goes into the global list (matchPilotForCSV).
@@ -210,14 +222,14 @@ namespace isc4_MCAwards
                                 Console.WriteLine($"{dropPilot.Name},{dropPilot.Stats.ComponentsDestroyed},{dropPilot.Stats.Damage},{dropPilot.Stats.TeamDamage}");
 
                                 match.TeamMembers.Add(dropPilot);
-                                teamMembersLDB.Insert(dropPilot);
+                                //teamMembersLDB.Insert(dropPilot);
                             }  
                             
-                            try {
-                                matchEventsLDB.Insert(match);      
-                            } catch (Exception exc) {
-                                Console.WriteLine($"LiteDB INSERT exception thrown: {exc}");
-                            }
+                            // try {
+                            //     matchEventsLDB.Insert(match);      
+                            // } catch (Exception exc) {
+                            //     Console.WriteLine($"LiteDB INSERT exception thrown: {exc}");
+                            // }
                         }
 
                         /*finally, add Tournament with MatchEvents to LiteDB:
@@ -226,7 +238,7 @@ namespace isc4_MCAwards
                         3. insert tournament
                         */
 
-                        isc4.Matches.AddRange(matchEvents);
+                        //isc4.Matches.AddRange(matchEvents);
 
                         // foreach (var item in isc4.Matches)
                         // {
@@ -236,11 +248,11 @@ namespace isc4_MCAwards
                         //     }
                         // }
 
-                        var tournaments = db.GetCollection<Tournament>("Tournaments");
-                        if(!tournaments.Exists(t => t.Name == "ISC 4 (2022)"))
-                        {
-                            tournaments.Insert(isc4);
-                        }              
+                        // var tournaments = db.GetCollection<Tournament>("Tournaments");
+                        // if(!tournaments.Exists(t => t.Name == "ISC 4 (2022)"))
+                        // {
+                        //     tournaments.Insert(isc4);
+                        // }              
 
                         #region CSV
                         Console.WriteLine("[START Kills CSV]");
@@ -249,18 +261,12 @@ namespace isc4_MCAwards
                         matchPilotForKillsCSV.Reverse();
                         foreach (var matchPilot in matchPilotForKillsCSV)
                         {
-                            if(matchPilot == null) {
+                            if (matchPilot == null)
+                            {
                                 continue;
                             }
 
-                            var matchPilotName = matchPilot.Name == null ? "NULL" : matchPilot.Name;
-                            var matchPilotStatsKills = matchPilot.Stats == null ? 0 : matchPilot.Stats.Kills;
-                            var matchPilotStatsKillAssists = matchPilot.Stats == null ? 0 : matchPilot.Stats.KillAssists;
-                            var matchPilotStatsKMDD = matchPilot.Stats == null ? 0 : matchPilot.Stats.KMDD;
-                            var matchPilotStatsComponentsDestroyed = matchPilot.Stats == null ? 0 : matchPilot.Stats.ComponentsDestroyed;
-                            var matchPilotStatsDamage = matchPilot.Stats == null ? 0 : matchPilot.Stats.Damage;
-
-                            Console.WriteLine($"{matchPilotName},{matchPilotStatsKills},{matchPilotStatsKillAssists},{matchPilot.Stats.KMDD},{matchPilotStatsComponentsDestroyed},{matchPilotStatsDamage}");
+                            PrintDropStats(matchPilot);
                         }
 
                         Console.WriteLine("[START Kill Assists CSV]");
@@ -273,14 +279,7 @@ namespace isc4_MCAwards
                                 continue;
                             }
 
-                            var matchPilotName = matchPilot.Name == null ? "NULL" : matchPilot.Name;
-                            var matchPilotStatsKills = matchPilot.Stats == null ? 0 : matchPilot.Stats.Kills;
-                            var matchPilotStatsKillAssists = matchPilot.Stats == null ? 0 : matchPilot.Stats.KillAssists;
-                            var matchPilotStatsKMDD = matchPilot.Stats == null ? 0 : matchPilot.Stats.KMDD;
-                            var matchPilotStatsComponentsDestroyed = matchPilot.Stats == null ? 0 : matchPilot.Stats.ComponentsDestroyed;
-                            var matchPilotStatsDamage = matchPilot.Stats == null ? 0 : matchPilot.Stats.Damage;
-
-                            Console.WriteLine($"{matchPilotName},{matchPilotStatsKills},{matchPilotStatsKillAssists},{matchPilot.Stats.KMDD},{matchPilotStatsComponentsDestroyed},{matchPilotStatsDamage}");
+                            PrintDropStats(matchPilot);
                         }
 
                         Console.WriteLine("[START KMDD CSV]");
@@ -293,14 +292,7 @@ namespace isc4_MCAwards
                                 continue;
                             }
 
-                            var matchPilotName = matchPilot.Name == null ? "NULL" : matchPilot.Name;
-                            var matchPilotStatsKills = matchPilot.Stats == null ? 0 : matchPilot.Stats.Kills;
-                            var matchPilotStatsKillAssists = matchPilot.Stats == null ? 0 : matchPilot.Stats.KillAssists;
-                            var matchPilotStatsKMDD = matchPilot.Stats == null ? 0 : matchPilot.Stats.KMDD;
-                            var matchPilotStatsComponentsDestroyed = matchPilot.Stats == null ? 0 : matchPilot.Stats.ComponentsDestroyed;
-                            var matchPilotStatsDamage = matchPilot.Stats == null ? 0 : matchPilot.Stats.Damage;
-
-                            Console.WriteLine($"{matchPilotName},{matchPilotStatsKills},{matchPilotStatsKillAssists},{matchPilot.Stats.KMDD},{matchPilotStatsComponentsDestroyed},{matchPilotStatsDamage}");
+                            PrintDropStats(matchPilot);
                         }
 
                         Console.WriteLine("[START Components CSV]");
@@ -313,14 +305,7 @@ namespace isc4_MCAwards
                                 continue;
                             }
 
-                            var matchPilotName = matchPilot.Name == null ? "NULL" : matchPilot.Name;
-                            var matchPilotStatsKills = matchPilot.Stats == null ? 0 : matchPilot.Stats.Kills;
-                            var matchPilotStatsKillAssists = matchPilot.Stats == null ? 0 : matchPilot.Stats.KillAssists;
-                            var matchPilotStatsKMDD = matchPilot.Stats == null ? 0 : matchPilot.Stats.KMDD;
-                            var matchPilotStatsComponentsDestroyed = matchPilot.Stats == null ? 0 : matchPilot.Stats.ComponentsDestroyed;
-                            var matchPilotStatsDamage = matchPilot.Stats == null ? 0 : matchPilot.Stats.Damage;
-
-                            Console.WriteLine($"{matchPilotName},{matchPilotStatsKills},{matchPilotStatsKillAssists},{matchPilot.Stats.KMDD},{matchPilotStatsComponentsDestroyed},{matchPilotStatsDamage}");
+                            PrintDropStats(matchPilot);
                         }
 
                         Console.WriteLine("[START Damage CSV]");
@@ -333,14 +318,7 @@ namespace isc4_MCAwards
                                 continue;
                             }
 
-                            var matchPilotName = matchPilot.Name == null ? "NULL" : matchPilot.Name;
-                            var matchPilotStatsKills = matchPilot.Stats == null ? 0 : matchPilot.Stats.Kills;
-                            var matchPilotStatsKillAssists = matchPilot.Stats == null ? 0 : matchPilot.Stats.KillAssists;
-                            var matchPilotStatsKMDD = matchPilot.Stats == null ? 0 : matchPilot.Stats.KMDD;
-                            var matchPilotStatsComponentsDestroyed = matchPilot.Stats == null ? 0 : matchPilot.Stats.ComponentsDestroyed;
-                            var matchPilotStatsDamage = matchPilot.Stats == null ? 0 : matchPilot.Stats.Damage;
-
-                            Console.WriteLine($"{matchPilotName},{matchPilotStatsKills},{matchPilotStatsKillAssists},{matchPilot.Stats.KMDD},{matchPilotStatsComponentsDestroyed},{matchPilotStatsDamage}");
+                            PrintDropStats(matchPilot);
                         }
                         #endregion CSV
 
@@ -365,10 +343,23 @@ namespace isc4_MCAwards
                     
                 }
             }
-            catch //(System.Exception exc)
+            catch (System.Exception exc)
             {      
-                //Console.WriteLine($"Outer exception thrown: {exc}");
+                Console.WriteLine($"Outer exception thrown: {exc}");
             }
+        }
+
+        private static void PrintDropStats(TeamMember matchPilot)
+        {
+            var matchPilotName = matchPilot.Name == null ? "NULL" : matchPilot.Name;
+            var matchID = matchPilot.MatchID == null ? "NULL" : matchPilot.MatchID;
+            var matchPilotStatsKills = matchPilot.Stats == null ? 0 : matchPilot.Stats.Kills;
+            var matchPilotStatsKillAssists = matchPilot.Stats == null ? 0 : matchPilot.Stats.KillAssists;
+            var matchPilotStatsKMDD = matchPilot.Stats == null ? 0 : matchPilot.Stats.KMDD;
+            var matchPilotStatsComponentsDestroyed = matchPilot.Stats == null ? 0 : matchPilot.Stats.ComponentsDestroyed;
+            var matchPilotStatsDamage = matchPilot.Stats == null ? 0 : matchPilot.Stats.Damage;
+
+            Console.WriteLine($"{matchPilotName},{matchPilotStatsKills},{matchPilotStatsKillAssists},{matchPilot.Stats.KMDD},{matchPilotStatsComponentsDestroyed},{matchPilotStatsDamage}");
         }
 
         private static void InsertMatchPilotHighestScoreIntoCorrespondingList(MatchEvent match, string statType)
@@ -378,71 +369,146 @@ namespace isc4_MCAwards
                 case "kills":
                     var resultK = matchPilotForKillsCSV.FindAll((mp) =>
                     {
-                        if (mp.Name == match.pilotTopKills.Max.Name && mp.Stats.Kills < match.pilotTopKills.Max.Stats.Kills)
-                        {
-                            matchPilotForKillsCSV.Remove(mp);
+                        if (mp.Name == match.pilotTopKills.Max.Name && match.pilotTopKills.Max.Stats.Kills < mp.Stats.Kills)
+                        {            
                             return true;
                         }
                         return false;
                     });
 
-                    matchPilotForKillsCSV.Add(match.pilotTopKills.Max);
+                    foreach (var item in resultK)
+                    {
+                        matchPilotForKillsCSV.Remove(item);
+                    }
+
+                    var pilotInListK = matchPilotForKillsCSV.FirstOrDefault((mp) => {
+                        if (mp.Name == match.pilotTopKills.Max.Name) 
+                        {
+                            return true;
+                        }
+                        return false;
+                    });
+
+                    if(resultK.Count > 0 || pilotInListK == null) 
+                    {
+                        matchPilotForKillsCSV.Add(match.pilotTopKills.Max);
+                    }
 
                 break;
                 case "assists":
                     var resultKA = matchPilotForKillAssistsCSV.FindAll((mp) =>
                     {
-                        if (mp.Name == match.pilotTopKillAssists.Max.Name && mp.Stats.KillAssists < match.pilotTopKillAssists.Max.Stats.KillAssists)
-                        {
-                            matchPilotForKillAssistsCSV.Remove(mp);
+                        if (mp.Name == match.pilotTopKillAssists.Max.Name && match.pilotTopKillAssists.Max.Stats.KillAssists > mp.Stats.KillAssists)
+                        {            
                             return true;
                         }
                         return false;
                     });
 
-                    matchPilotForKillAssistsCSV.Add(match.pilotTopKillAssists.Max);
+                    foreach (var item in resultKA)
+                    {
+                        matchPilotForKillAssistsCSV.Remove(item);
+                    }
+
+                    var pilotInListKA = matchPilotForKillAssistsCSV.FirstOrDefault((mp) => {
+                        if (mp.Name == match.pilotTopKillAssists.Max.Name) 
+                        {
+                            return true;
+                        }
+                        return false;
+                    });
+
+                    if(resultKA.Count > 0 || pilotInListKA == null) 
+                    {
+                        matchPilotForKillAssistsCSV.Add(match.pilotTopKillAssists.Max);
+                    }
 
                 break;
                 case "kmdd":
                     var resultKM = matchPilotForKMDDCSV.FindAll((mp) =>
                     {
-                        if (mp.Name == match.pilotTopKMDD.Max.Name && mp.Stats.KMDD < match.pilotTopKMDD.Max.Stats.KMDD)
-                        {
-                            matchPilotForKMDDCSV.Remove(mp);
+                        if (mp.Name == match.pilotTopKMDD.Max.Name && match.pilotTopKMDD.Max.Stats.KMDD > mp.Stats.KMDD)
+                        {             
                             return true;
                         }
                         return false;
                     }); 
 
-                    matchPilotForKMDDCSV.Add(match.pilotTopKMDD.Max);
+                    foreach (var item in resultKM)
+                    {
+                        matchPilotForKMDDCSV.Remove(item);
+                    }
+
+                    var pilotInListKM = matchPilotForKMDDCSV.FirstOrDefault((mp) => {
+                        if (mp.Name == match.pilotTopKMDD.Max.Name) 
+                        {
+                            return true;
+                        }
+                        return false;
+                    });
+
+                    if(resultKM.Count > 0 || pilotInListKM == null) 
+                    {
+                        matchPilotForKMDDCSV.Add(match.pilotTopKMDD.Max);
+                    }
 
                 break;
                 case "components":
                     var resultC = matchPilotForComponentsDestroyedCSV.FindAll((mp) =>
                     {
-                        if (mp.Name == match.pilotTopComponentsDestroyed.Max.Name && mp.Stats.ComponentsDestroyed < match.pilotTopComponentsDestroyed.Max.Stats.ComponentsDestroyed)
-                        {
-                            matchPilotForComponentsDestroyedCSV.Remove(mp);
+                        if (mp.Name == match.pilotTopComponentsDestroyed.Max.Name && match.pilotTopComponentsDestroyed.Max.Stats.ComponentsDestroyed > mp.Stats.ComponentsDestroyed)
+                        {               
                             return true;
                         }
                         return false;
                     }); 
 
-                    matchPilotForComponentsDestroyedCSV.Add(match.pilotTopComponentsDestroyed.Max);
+                    foreach (var item in resultC)
+                    {
+                        matchPilotForComponentsDestroyedCSV.Remove(item);
+                    }
+
+                    var pilotInListC = matchPilotForComponentsDestroyedCSV.FirstOrDefault((mp) => {
+                        if (mp.Name == match.pilotTopComponentsDestroyed.Max.Name) 
+                        {
+                            return true;
+                        }
+                        return false;
+                    });
+
+                    if(resultC.Count > 0 || pilotInListC == null) 
+                    {
+                        matchPilotForComponentsDestroyedCSV.Add(match.pilotTopComponentsDestroyed.Max);
+                    }
                 
                 break;
                 case "damage":
                     var resultD = matchPilotForDamageCSV.FindAll((mp) =>
                     {
-                        if (mp.Name == match.pilotTopDamage.Max.Name && mp.Stats.Damage < match.pilotTopDamage.Max.Stats.Damage)
+                        if (mp.Name == match.pilotTopDamage.Max.Name && match.pilotTopDamage.Max.Stats.Damage > mp.Stats.Damage)
+                        {               
+                            return true;
+                        }  
+                        return false;           
+                    }); 
+
+                    foreach (var item in resultD)
+                    {
+                        matchPilotForDamageCSV.Remove(item);
+                    }
+
+                    var pilotInList = matchPilotForDamageCSV.FirstOrDefault((mp) => {
+                        if (mp.Name == match.pilotTopDamage.Max.Name) 
                         {
-                            matchPilotForDamageCSV.Remove(mp);
                             return true;
                         }
                         return false;
-                    }); 
+                    });
 
-                    matchPilotForDamageCSV.Add(match.pilotTopDamage.Max);
+                    if(resultD.Count > 0 || pilotInList == null) 
+                    {
+                        matchPilotForDamageCSV.Add(match.pilotTopDamage.Max);
+                    }
                 
                 break;
             }
