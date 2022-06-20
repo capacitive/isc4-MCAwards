@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -36,12 +37,18 @@ namespace isc4_MCAwards
 {
     class Program
     {
+        #region CSV lists
         static List<TeamMember> matchPilotForCSV = new List<TeamMember>();
         static List<TeamMember> matchPilotForKillsCSV = new List<TeamMember>();
         static List<TeamMember> matchPilotForKillAssistsCSV = new List<TeamMember>();
         static List<TeamMember> matchPilotForKMDDCSV = new List<TeamMember>();
         static List<TeamMember> matchPilotForComponentsDestroyedCSV = new List<TeamMember>();
         static List<TeamMember> matchPilotForDamageCSV = new List<TeamMember>();
+        static ConcurrentBag<TeamMember> matchPilotForDamageCSV_Bag = new ConcurrentBag<TeamMember>();
+        #endregion CSV lists
+
+        static SortedDictionary<string, TeamMember> uniquePilotCounter = new SortedDictionary<string, TeamMember>();
+
         static string[] Scopes = { SheetsService.Scope.Spreadsheets, DriveService.Scope.Drive, DriveService.Scope.DriveFile };
         static string ApplicationName = "ISCCompTeamStats";
 
@@ -216,6 +223,8 @@ namespace isc4_MCAwards
                             //add pilot stats for this match's drops to the global drop list (will auto-sort):
                             foreach (var dropPilot in match.BothTeamsPerDrop.MembersG)
                             {
+                                uniquePilotCounter.TryAdd(dropPilot.Name, dropPilot);
+
                                 _pilotTeamDamagePerDrop.Add(dropPilot);
                                 _pilotTopComponentsDestroyedPerDrop.Add(dropPilot);
                                 _pilotTopDamagePerDrop.Add(dropPilot);
@@ -320,6 +329,20 @@ namespace isc4_MCAwards
 
                             PrintDropStats(matchPilot);
                         }
+
+                        Console.WriteLine("[START Damage CSV SECONDARY]");
+                        Console.WriteLine("Name,Kills,Kill Assists,KMDD,Components Destroyed,Damage");
+                        var sortedList = matchPilotForDamageCSV_Bag.ToList();
+                        sortedList.Sort(new DamageComparer());
+                        sortedList.Reverse();
+                        foreach (var matchPilot in sortedList)
+                        {
+                            if(matchPilot == null) {
+                                continue;
+                            }
+
+                            PrintDropStats(matchPilot);
+                        }
                         #endregion CSV
 
                         //print out the top pilots stats per drop:
@@ -335,6 +358,14 @@ namespace isc4_MCAwards
                         Console.WriteLine($"Top match pilot: {_pilotTopKMDDPerMatch.Max.Name} for KMDD: {_pilotTopKMDDPerMatch.Max.Stats.KMDD}");   
                         Console.WriteLine($"Top match pilot: {_pilotTopComponentsDestroyedPerMatch.Max.Name} for components destroyed: {_pilotTopComponentsDestroyedPerMatch.Max.Stats.ComponentsDestroyed}");   
                         Console.WriteLine($"Top match pilot: {_pilotTopDamagePerMatch.Max.Name} for damage: {_pilotTopDamagePerMatch.Max.Stats.Damage}");
+                    
+                        Console.WriteLine("------------------------------------------------------------------------");
+                        Console.WriteLine($"Unique pilots count: {uniquePilotCounter.Count}");
+                        Console.WriteLine("------------------------------------------------------------------------");
+                        foreach (var uPilot in uniquePilotCounter)
+                        {
+                            Console.WriteLine(uPilot.Key);      
+                        }
                     }
                     catch (Exception exc)
                     {
@@ -480,9 +511,16 @@ namespace isc4_MCAwards
                     {
                         matchPilotForComponentsDestroyedCSV.Add(match.pilotTopComponentsDestroyed.Max);
                     }
-                
                 break;
                 case "damage":
+                    // var duplicateEntriesToRemove = matchPilotForDamageCSV_Bag.TakeWhile((mp) => 
+                    //     mp.Name == match.pilotTopDamage.Max.Name && 
+                    //     match.pilotTopDamage.Max.Stats.Damage > mp.Stats.Damage ? true : false);
+
+                    // if(duplicateEntriesToRemove.Count() >= 0) 
+                    //     matchPilotForDamageCSV.Add(match.pilotTopDamage.Max);
+
+                    #region NON-CONCURRENT (works fine, but maybe not as performant or terse)
                     var resultD = matchPilotForDamageCSV.FindAll((mp) =>
                     {
                         if (mp.Name == match.pilotTopDamage.Max.Name && match.pilotTopDamage.Max.Stats.Damage > mp.Stats.Damage)
@@ -509,6 +547,7 @@ namespace isc4_MCAwards
                     {
                         matchPilotForDamageCSV.Add(match.pilotTopDamage.Max);
                     }
+                    #endregion
                 
                 break;
             }
